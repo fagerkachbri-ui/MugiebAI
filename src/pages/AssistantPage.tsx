@@ -101,7 +101,7 @@ if (!/^#[0-9A-Fa-f]{6}$/.test(normalizedColor)) {
         name,
         welcome_message: welcomeMessage,
         instructions,
-        primary_color: primaryColor,
+        primary_color: normalizedColor,
         language,
         direction,
         is_active: isActive,
