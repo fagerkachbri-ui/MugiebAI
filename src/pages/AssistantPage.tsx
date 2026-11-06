@@ -87,6 +87,13 @@ export default function AssistantPage() {
 
   const handleSave = async () => {
     if (!assistant) return;
+      const normalizedColor = primaryColor.trim();
+
+if (!/^#[0-9A-Fa-f]{6}$/.test(normalizedColor)) {
+  alert('الرجاء إدخال لون صالح بصيغة #RRGGBB، مثل #0EA5E9');
+  return;
+}
+    
     setSaving(true);
     const { error } = await supabase
       .from('assistants')
