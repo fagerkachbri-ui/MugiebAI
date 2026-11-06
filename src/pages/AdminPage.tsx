@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Assistant } from '@/lib/types';
 import {
@@ -11,8 +11,6 @@ import {
   LogOut,
   Settings2,
   Shield,
-  ChevronLeft,
-  Trash2,
   Bot as BotIcon,
 } from 'lucide-react';
 

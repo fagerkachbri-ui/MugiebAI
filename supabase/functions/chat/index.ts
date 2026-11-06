@@ -87,17 +87,6 @@ async function callOpenAI(
   return { reply, tokens };
 }
 
-async function checkRateLimit(visitorId: string): Promise<boolean> {
-  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', windowStart);
-  // This counts ALL messages globally — rough; for a proper per-visitor check
-  // we'd need visitor_id on the messages table. Using usage_logs instead.
-  return (count ?? 0) < 10000;
-}
-
 async function checkVisitorRateLimit(visitorId: string): Promise<{ allowed: boolean; reason?: string }> {
   const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
   const { count } = await supabase

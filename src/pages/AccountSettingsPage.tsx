@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { Bot, Mail, Lock, LogOut, ChevronRight, Check, AlertCircle, User } from 'lucide-react';
 
 export default function AccountSettingsPage() {

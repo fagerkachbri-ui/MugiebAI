@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Assistant, Message } from '@/lib/types';
+import type { Assistant } from '@/lib/types';
 import { Bot, Send, X, MessageCircle } from 'lucide-react';
 
 interface ChatWidgetProps {

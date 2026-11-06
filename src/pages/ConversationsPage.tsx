@@ -6,10 +6,8 @@ import {
   MessageSquare,
   ChevronRight,
   Trash2,
-  ArrowRight,
   User,
   Bot,
-  Download,
   FileJson,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -52,7 +50,6 @@ export default function ConversationsPage() {
   };
 
   const exportConversation = (conv: Conversation & { messages: Message[] }, format: 'csv' | 'json') => {
-    const stamp = new Date().toISOString().slice(0, 10);
     const fname = `${conv.visitor_name ?? 'visitor'}-${conv.id.slice(0, 8)}.${format}`;
     let blob: Blob;
 

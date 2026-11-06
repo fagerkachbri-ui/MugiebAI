@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import {
   Bot,
   MessageSquare,

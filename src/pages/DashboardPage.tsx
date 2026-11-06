@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import type { Assistant } from '@/lib/types';
 import { useState, useEffect } from 'react';
@@ -12,8 +12,6 @@ import {
   LogOut,
   Trash2,
   ExternalLink,
-  ChevronLeft,
-  Activity,
   Settings2,
   BarChart3,
   Menu,

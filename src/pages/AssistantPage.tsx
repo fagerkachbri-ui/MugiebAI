@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/lib/auth';
 import type { Assistant, KnowledgeSource } from '@/lib/types';
 import {
   Bot,
@@ -26,7 +25,6 @@ type Tab = 'settings' | 'knowledge' | 'embed';
 
 export default function AssistantPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const [assistant, setAssistant] = useState<Assistant | null>(null);
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [loading, setLoading] = useState(true);
