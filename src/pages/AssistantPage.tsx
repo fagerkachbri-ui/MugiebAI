@@ -51,6 +51,7 @@ export default function AssistantPage() {
   const [srcContent, setSrcContent] = useState('');
   const [srcType, setSrcType] = useState<'text' | 'qa'>('text');
   const [srcQuestion, setSrcQuestion] = useState('');
+  const [shareWithAllAssistants, setShareWithAllAssistants] = useState(false);
   const [addingSource, setAddingSource] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +80,8 @@ export default function AssistantPage() {
       const { data: srcs } = await supabase
         .from('knowledge_sources')
         .select('*')
-        .eq('assistant_id', aid)
+        .eq('user_id', a.user_id)
+        .or(`assistant_id.eq.${aid},assistant_id.is.null`)
         .order('created_at', { ascending: false });
       setSources(srcs ?? []);
     }
@@ -216,6 +218,7 @@ export default function AssistantPage() {
         content,
         sourceType: srcType,
         question: srcType === 'qa' ? question : null,
+        isShared: shareWithAllAssistants,
       });
 
       if (!result.source) {
@@ -234,6 +237,7 @@ export default function AssistantPage() {
       setSrcTitle('');
       setSrcContent('');
       setSrcQuestion('');
+      setShareWithAllAssistants(false);
       setShowAddSource(false);
 
       alert('تمت إضافة مصدر المعرفة بنجاح.');
@@ -349,6 +353,7 @@ export default function AssistantPage() {
             content,
             sourceType: 'text',
             question: null,
+            isShared: shareWithAllAssistants,
           });
 
           if (!result.source) {
@@ -755,6 +760,11 @@ export default function AssistantPage() {
                           <h4 className="font-medium text-slate-900 mb-1">
                             {s.title}
                           </h4>
+                          {s.assistant_id === null && (
+                            <span className="inline-flex mb-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                              مشترك مع جميع مساعدات الحساب
+                            </span>
+                          )}
 
                           {s.question && (
                             <p className="text-sm text-sky-600 mb-1 font-medium">
@@ -797,6 +807,23 @@ export default function AssistantPage() {
                   <p className="text-slate-500 text-sm mb-6">
                     أضف معلومات سيستند إليها المساعد عند الإجابة
                   </p>
+
+                  <label className="mb-5 flex items-start gap-3 rounded-xl border border-sky-100 bg-sky-50 p-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareWithAllAssistants}
+                      onChange={(e) => setShareWithAllAssistants(e.target.checked)}
+                      className="mt-1 h-4 w-4 accent-sky-600"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-sky-900">
+                        مشاركة مع جميع مساعداتي
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-sky-700">
+                        ستظهر هذه المعلومات لجميع المساعدين التابعين لحسابك فقط، ولن يطلع عليها أصحاب الحسابات الأخرى.
+                      </span>
+                    </span>
+                  </label>
 
                   <form
                     onSubmit={handleAddSource}
