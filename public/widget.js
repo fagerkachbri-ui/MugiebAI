@@ -1,6 +1,7 @@
+
 /**
  * مَجيب AI — Embeddable Chat Widget
- * Secure color validation edition
+ * Signed visitor session edition
  */
 (function () {
   'use strict';
@@ -21,27 +22,114 @@
 
   var anonKey = scriptTag.getAttribute('data-anon-key') || '';
 
-  // Visitor ID
-  var VISITOR_KEY = 'majib_visitor_id';
+  // Signed visitor session issued by the chat Edge Function.
+  var VISITOR_SESSION_KEY = 'majib_visitor_session_v1';
+  var visitorSession = null;
 
-  var visitorId = (function () {
+  function readStoredVisitorSession() {
     try {
-      var stored = localStorage.getItem(VISITOR_KEY);
-      if (stored) return stored;
+      var raw = localStorage.getItem(VISITOR_SESSION_KEY);
+      if (!raw) return null;
+
+      var stored = JSON.parse(raw);
+
+      if (
+        stored &&
+        typeof stored.visitor_id === 'string' &&
+        typeof stored.visitor_token === 'string' &&
+        typeof stored.expires_at === 'number' &&
+        stored.expires_at > Date.now() + 60000
+      ) {
+        return stored;
+      }
     } catch (e) {}
 
-    var id =
-      'v_' +
-      Date.now() +
-      '_' +
-      Math.random().toString(36).slice(2, 8);
+    return null;
+  }
+
+  function clearVisitorSession() {
+    visitorSession = null;
 
     try {
-      localStorage.setItem(VISITOR_KEY, id);
+      localStorage.removeItem(VISITOR_SESSION_KEY);
+    } catch (e) {}
+  }
+
+  async function createVisitorSession() {
+    if (!anonKey) {
+      throw new Error(
+        'Widget configuration is missing its public API key.'
+      );
+    }
+
+    var response = await fetch(
+      supabaseUrl + '/functions/v1/chat',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': 'Bearer ' + anonKey
+        },
+        body: JSON.stringify({
+          action: 'create_visitor_session'
+        })
+      }
+    );
+
+    var data = await response.json().catch(function () {
+      return {};
+    });
+
+    if (
+      !response.ok ||
+      typeof data.visitor_id !== 'string' ||
+      typeof data.visitor_token !== 'string' ||
+      typeof data.expires_at !== 'number'
+    ) {
+      throw new Error(
+        typeof data.error === 'string'
+          ? data.error
+          : 'تعذر إنشاء جلسة الزائر.'
+      );
+    }
+
+    visitorSession = {
+      visitor_id: data.visitor_id,
+      visitor_token: data.visitor_token,
+      expires_at: data.expires_at
+    };
+
+    try {
+      localStorage.setItem(
+        VISITOR_SESSION_KEY,
+        JSON.stringify(visitorSession)
+      );
     } catch (e) {}
 
-    return id;
-  })();
+    return visitorSession;
+  }
+
+  async function getVisitorSession(forceRefresh) {
+    if (forceRefresh) {
+      clearVisitorSession();
+    }
+
+    if (
+      visitorSession &&
+      visitorSession.expires_at > Date.now() + 60000
+    ) {
+      return visitorSession;
+    }
+
+    visitorSession = readStoredVisitorSession();
+
+    if (visitorSession) {
+      return visitorSession;
+    }
+
+    return await createVisitorSession();
+  }
 
   // State
   var assistant = null;
@@ -362,31 +450,61 @@
     renderMessages();
 
     try {
+      var session = await getVisitorSession(false);
+
       var response = await fetch(
         supabaseUrl + '/functions/v1/chat',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'apikey': anonKey,
             'Authorization': 'Bearer ' + anonKey
           },
           body: JSON.stringify({
             assistant_id: assistantId,
             message: messageText,
-            visitor_id: visitorId,
+            visitor_id: session.visitor_id,
+            visitor_token: session.visitor_token,
             conversation_id: conversationId
           })
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Request failed: ' + response.status);
+      // Refresh the signed session once if the server rejects it.
+      if (response.status === 401) {
+        session = await getVisitorSession(true);
+
+        response = await fetch(
+          supabaseUrl + '/functions/v1/chat',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': anonKey,
+              'Authorization': 'Bearer ' + anonKey
+            },
+            body: JSON.stringify({
+              assistant_id: assistantId,
+              message: messageText,
+              visitor_id: session.visitor_id,
+              visitor_token: session.visitor_token,
+              conversation_id: conversationId
+            })
+          }
+        );
       }
 
-      var data = await response.json();
+      var data = await response.json().catch(function () {
+        return {};
+      });
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Request failed: ' + response.status
+        );
       }
 
       if (data.conversation_id) {
@@ -399,6 +517,8 @@
       });
 
     } catch (err) {
+      console.error('[Majib] Chat request failed:', err);
+
       messages.push({
         role: 'assistant',
         content: 'عذرًا، حدث خطأ. يرجى المحاولة مرة أخرى.'
@@ -444,7 +564,7 @@
       }
 
     } catch (e) {
-      // Use safe default settings.
+      console.error('[Majib] Assistant initialization failed:', e);
     }
 
     dom.bubble = createBubble();
