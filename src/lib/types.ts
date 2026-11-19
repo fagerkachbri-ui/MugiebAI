@@ -1,3 +1,4 @@
+
 export interface Profile {
   id: string;
   email: string;
@@ -21,7 +22,7 @@ export interface Assistant {
 
 export interface KnowledgeSource {
   id: string;
-  assistant_id: string;
+  assistant_id: string | null;
   user_id: string;
   title: string;
   content: string;
