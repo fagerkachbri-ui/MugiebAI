@@ -1,73 +1,5 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatWidget.tsx</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 20px;
-        }
-        .container {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-        }
-        .header {
-            background: #0f172a;
-            color: #fff;
-            padding: 16px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h2 {
-            margin: 0;
-            font-size: 1.1rem;
-        }
-        button.copy-btn {
-            background-color: #0ea5e9;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: background-color 0.2s;
-        }
-        button.copy-btn:hover {
-            background-color: #0284c7;
-        }
-        pre {
-            background-color: #090d16;
-            color: #e2e8f0;
-            padding: 24px;
-            margin: 0;
-            overflow-x: auto;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.85rem;
-            line-height: 1.6;
-            direction: ltr;
-            text-align: left;
-        }
-    </style>
-</head>
-<body>
 
-<div class="container">
-    <div class="header">
-        <h2>src/components/ChatWidget.tsx</h2>
-        <button id="copyBtn" class="copy-btn" onclick="copyContent()">نسخ الكود كاملاً</button>
-    </div>
-    <pre id="fileContent">import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Assistant } from '@/lib/types';
 import { Bot, Send, X, MessageCircle } from 'lucide-react';
@@ -106,28 +38,28 @@ export default function ChatWidget({
   assistantId,
   embedded = false
 }: ChatWidgetProps) {
-  const [assistant, setAssistant] = useState&lt;Assistant | null&gt;(null);
+  const [assistant, setAssistant] = useState<Assistant | null>(null);
   const [open, setOpen] = useState(embedded);
-  const [messages, setMessages] = useState&lt;WidgetMessage[]&gt;([]);
+  const [messages, setMessages] = useState<WidgetMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState&lt;string | null&gt;(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [visitorSession, setVisitorSession] = useState<VisitorSession | null>(null);
 
-  const [visitorSession, setVisitorSession] = useState&lt;VisitorSession | null&gt;(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const scrollRef = useRef&lt;HTMLDivElement&gt;(null);
-  const inputRef = useRef&lt;HTMLInputElement&gt;(null);
-
-  useEffect(() =&gt; {
+  useEffect(() => {
     let cancelled = false;
 
-    const createSession = async () =&gt; {
+    const createSession = async () => {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({ action: 'create_visitor_session' }),
@@ -135,6 +67,7 @@ export default function ChatWidget({
       );
 
       const data = await response.json();
+
       if (!response.ok || !data?.visitor_id || !data?.visitor_token) {
         throw new Error(data?.error || 'تعذر بدء جلسة الزائر');
       }
@@ -149,30 +82,43 @@ export default function ChatWidget({
       return session;
     };
 
-    const initialize = async () =&gt; {
+    const initialize = async () => {
       try {
         const stored = localStorage.getItem('majib_visitor_session');
+
         if (stored) {
           const parsed = JSON.parse(stored) as VisitorSession;
-          if (parsed.visitor_id && parsed.visitor_token &&
-              (!parsed.expires_at || parsed.expires_at &gt; Date.now())) {
+
+          if (
+            parsed.visitor_id &&
+            parsed.visitor_token &&
+            (!parsed.expires_at || parsed.expires_at > Date.now())
+          ) {
             if (!cancelled) setVisitorSession(parsed);
             return;
           }
+
+          localStorage.removeItem('majib_visitor_session');
         }
 
         const created = await createSession();
-        if (!cancelled) setVisitorSession(created);
+
+        if (!cancelled) {
+          setVisitorSession(created);
+        }
       } catch (error) {
         console.error('Visitor session initialization failed:', error);
       }
     };
 
     initialize();
-    return () =&gt; { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     let cancelled = false;
 
     supabase
@@ -180,7 +126,7 @@ export default function ChatWidget({
       .select('*')
       .eq('id', assistantId)
       .maybeSingle()
-      .then(({ data }) =&gt; {
+      .then(({ data }) => {
         if (cancelled || !data) return;
 
         setAssistant(data);
@@ -194,25 +140,24 @@ export default function ChatWidget({
         ]);
       });
 
-    return () =&gt; {
+    return () => {
       cancelled = true;
     };
   }, [assistantId]);
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop =
-        scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     if (open && inputRef.current) {
       inputRef.current.focus();
     }
   }, [open]);
 
-  const sendMessage = useCallback(async () =&gt; {
+  const sendMessage = useCallback(async () => {
     const msgText = input.trim();
 
     if (!msgText || loading || !visitorSession) return;
@@ -223,7 +168,7 @@ export default function ChatWidget({
       content: msgText
     };
 
-    setMessages(prev =&gt; [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
@@ -235,8 +180,8 @@ export default function ChatWidget({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization:
-            `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           assistant_id: assistantId,
@@ -247,21 +192,17 @@ export default function ChatWidget({
         })
       });
 
-      if (!response.ok) {
-        throw new Error('فشل الاتصال');
-      }
-
       const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'فشل الاتصال بالخادم');
       }
 
       if (data.conversation_id) {
         setConversationId(data.conversation_id);
       }
 
-      setMessages(prev =&gt; [
+      setMessages(prev => [
         ...prev,
         {
           id: `a_${Date.now()}`,
@@ -270,8 +211,10 @@ export default function ChatWidget({
         }
       ]);
 
-    } catch {
-      setMessages(prev =&gt; [
+    } catch (error) {
+      console.error('Chat request failed:', error);
+
+      setMessages(prev => [
         ...prev,
         {
           id: `e_${Date.now()}`,
@@ -296,41 +239,41 @@ export default function ChatWidget({
 
   if (embedded) {
     return (
-      &lt;div
+      <div
         dir={dir}
         className="flex flex-col h-full bg-white rounded-2xl border border-slate-200 overflow-hidden"
         style={{ minHeight: '500px' }}
-      &gt;
-        &lt;div
+      >
+        <div
           className="px-5 py-4 flex items-center gap-3 text-white"
           style={{ backgroundColor: primaryColor }}
-        &gt;
-          &lt;div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"&gt;
-            &lt;Bot className="w-5 h-5" /&gt;
-          &lt;/div&gt;
+        >
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <Bot className="w-5 h-5" />
+          </div>
 
-          &lt;div&gt;
-            &lt;h3 className="font-medium"&gt;
+          <div>
+            <h3 className="font-medium">
               {assistant?.name ?? 'مَجيب'}
-            &lt;/h3&gt;
-            &lt;p className="text-xs opacity-80"&gt;مساعد ذكي&lt;/p&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
+            </h3>
+            <p className="text-xs opacity-80">مساعد ذكي</p>
+          </div>
+        </div>
 
-        &lt;div
+        <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/50"
-        &gt;
-          {messages.map(m =&gt; (
-            &lt;div
+        >
+          {messages.map(m => (
+            <div
               key={m.id}
               className={`flex ${
                 m.role === 'user'
                   ? 'justify-end'
                   : 'justify-start'
               } animate-fade-in`}
-            &gt;
-              &lt;div
+            >
+              <div
                 className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm ${
                   m.role === 'user'
                     ? 'text-white rounded-tl-sm'
@@ -341,31 +284,31 @@ export default function ChatWidget({
                     ? { backgroundColor: primaryColor }
                     : {}
                 }
-              &gt;
+              >
                 {m.content}
-              &lt;/div&gt;
-            &lt;/div&gt;
+              </div>
+            </div>
           ))}
 
           {loading && (
-            &lt;div className="flex justify-start animate-fade-in"&gt;
-              &lt;div className="bg-white border border-slate-100 rounded-2xl rounded-tr-sm px-4 py-3 flex gap-1.5"&gt;
-                &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-                &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-                &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-              &lt;/div&gt;
-            &lt;/div&gt;
+            <div className="flex justify-start animate-fade-in">
+              <div className="bg-white border border-slate-100 rounded-2xl rounded-tr-sm px-4 py-3 flex gap-1.5">
+                <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+                <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+                <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+              </div>
+            </div>
           )}
-        &lt;/div&gt;
+        </div>
 
-        &lt;div className="p-3 border-t border-slate-100 bg-white"&gt;
-          &lt;div className="flex items-center gap-2"&gt;
-            &lt;input
+        <div className="p-3 border-t border-slate-100 bg-white">
+          <div className="flex items-center gap-2">
+            <input
               ref={inputRef}
               type="text"
               value={input}
-              onChange={e =&gt; setInput(e.target.value)}
-              onKeyDown={e =&gt; {
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
                 if (e.key === 'Enter') sendMessage();
               }}
               placeholder="اكتب رسالتك..."
@@ -374,86 +317,84 @@ export default function ChatWidget({
               style={{
                 textAlign: dir === 'rtl' ? 'right' : 'left'
               }}
-            /&gt;
+            />
 
-            &lt;button
+            <button
               onClick={sendMessage}
               disabled={loading || !input.trim() || !visitorSession}
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
               style={{ backgroundColor: primaryColor }}
-            &gt;
-              &lt;Send
+            >
+              <Send
                 className="w-4 h-4"
                 style={{
-                  transform: dir === 'rtl'
-                    ? 'scaleX(-1)'
-                    : ''
+                  transform: dir === 'rtl' ? 'scaleX(-1)' : ''
                 }}
-              /&gt;
-            &lt;/button&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+              />
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    &lt;div
+    <div
       dir={dir}
       className="fixed bottom-6 left-6 z-50"
       style={{ fontFamily: 'inherit' }}
-    &gt;
+    >
       {!open && (
-        &lt;button
-          onClick={() =&gt; setOpen(true)}
+        <button
+          onClick={() => setOpen(true)}
           className="relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white pulse-ring transition-transform hover:scale-110"
           style={{ backgroundColor: primaryColor }}
-        &gt;
-          &lt;MessageCircle className="w-6 h-6" /&gt;
-        &lt;/button&gt;
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
       )}
 
       {open && (
-        &lt;div
+        <div
           className="w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-slide-up flex flex-col"
           style={{ maxHeight: '500px' }}
-        &gt;
-          &lt;div
+        >
+          <div
             className="px-4 py-3 flex items-center justify-between text-white"
             style={{ backgroundColor: primaryColor }}
-          &gt;
-            &lt;div className="flex items-center gap-2"&gt;
-              &lt;div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"&gt;
-                &lt;Bot className="w-4 h-4" /&gt;
-              &lt;/div&gt;
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <Bot className="w-4 h-4" />
+              </div>
 
-              &lt;span className="font-medium text-sm"&gt;
+              <span className="font-medium text-sm">
                 {assistant?.name ?? 'مَجيب'}
-              &lt;/span&gt;
-            &lt;/div&gt;
+              </span>
+            </div>
 
-            &lt;button
-              onClick={() =&gt; setOpen(false)}
+            <button
+              onClick={() => setOpen(false)}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
-            &gt;
-              &lt;X className="w-4 h-4" /&gt;
-            &lt;/button&gt;
-          &lt;/div&gt;
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-          &lt;div
+          <div
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-4 space-y-2.5 bg-slate-50/50"
-          &gt;
-            {messages.map(m =&gt; (
-              &lt;div
+          >
+            {messages.map(m => (
+              <div
                 key={m.id}
                 className={`flex ${
                   m.role === 'user'
                     ? 'justify-end'
                     : 'justify-start'
                 } animate-fade-in`}
-              &gt;
-                &lt;div
+              >
+                <div
                   className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm ${
                     m.role === 'user'
                       ? 'text-white rounded-tl-sm'
@@ -464,31 +405,31 @@ export default function ChatWidget({
                       ? { backgroundColor: primaryColor }
                       : {}
                   }
-                &gt;
+                >
                   {m.content}
-                &lt;/div&gt;
-              &lt;/div&gt;
+                </div>
+              </div>
             ))}
 
             {loading && (
-              &lt;div className="flex justify-start animate-fade-in"&gt;
-                &lt;div className="bg-white border border-slate-100 rounded-2xl rounded-tr-sm px-3 py-2.5 flex gap-1.5"&gt;
-                  &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-                  &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-                  &lt;span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" /&gt;
-                &lt;/div&gt;
-              &lt;/div&gt;
+              <div className="flex justify-start animate-fade-in">
+                <div className="bg-white border border-slate-100 rounded-2xl rounded-tr-sm px-3 py-2.5 flex gap-1.5">
+                  <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-slate-300 rounded-full" />
+                </div>
+              </div>
             )}
-          &lt;/div&gt;
+          </div>
 
-          &lt;div className="p-2.5 border-t border-slate-100 bg-white"&gt;
-            &lt;div className="flex items-center gap-2"&gt;
-              &lt;input
+          <div className="p-2.5 border-t border-slate-100 bg-white">
+            <div className="flex items-center gap-2">
+              <input
                 ref={inputRef}
                 type="text"
                 value={input}
-                onChange={e =&gt; setInput(e.target.value)}
-                onKeyDown={e =&gt; {
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
                   if (e.key === 'Enter') sendMessage();
                 }}
                 placeholder="اكتب رسالتك..."
@@ -497,48 +438,25 @@ export default function ChatWidget({
                 style={{
                   textAlign: dir === 'rtl' ? 'right' : 'left'
                 }}
-              /&gt;
+              />
 
-              &lt;button
+              <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim() || !visitorSession}
                 className="w-9 h-9 rounded-lg flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
                 style={{ backgroundColor: primaryColor }}
-              &gt;
-                &lt;Send
+              >
+                <Send
                   className="w-4 h-4"
                   style={{
-                    transform: dir === 'rtl'
-                      ? 'scaleX(-1)'
-                      : ''
+                    transform: dir === 'rtl' ? 'scaleX(-1)' : ''
                   }}
-                /&gt;
-              &lt;/button&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
-}</pre>
-</div>
-
-<script>
-    function copyContent() {
-        const textToCopy = document.getElementById('fileContent').innerText;
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const btn = document.getElementById('copyBtn');
-            btn.textContent = 'تم النسخ بنجاح!';
-            btn.style.backgroundColor = '#10b981';
-            setTimeout(() => {
-                btn.textContent = 'نسخ الكود كاملاً';
-                btn.style.backgroundColor = '#0ea5e9';
-            }, 2000);
-        }).catch(err => {
-            console.error('فشل في نسخ المحتوى: ', err);
-        });
-    }
-</script>
-
-</body>
-</html>
+}
