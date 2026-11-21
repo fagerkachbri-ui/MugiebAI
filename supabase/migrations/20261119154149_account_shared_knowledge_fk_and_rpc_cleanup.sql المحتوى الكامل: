@@ -1,0 +1,65 @@
+
+-- Fix assistant deletion behavior for shared knowledge.
+-- Shared knowledge rows use assistant_id = NULL and remain untouched.
+-- Assistant-specific knowledge rows are deleted with their assistant.
+
+BEGIN;
+
+ALTER TABLE public.knowledge_sources
+  DROP CONSTRAINT IF EXISTS knowledge_sources_assistant_id_fkey;
+
+ALTER TABLE public.knowledge_sources
+  ADD CONSTRAINT knowledge_sources_assistant_id_fkey
+  FOREIGN KEY (assistant_id)
+  REFERENCES public.assistants(id)
+  ON DELETE CASCADE;
+
+ALTER TABLE public.knowledge_embeddings
+  DROP CONSTRAINT IF EXISTS knowledge_embeddings_assistant_id_fkey;
+
+ALTER TABLE public.knowledge_embeddings
+  ADD CONSTRAINT knowledge_embeddings_assistant_id_fkey
+  FOREIGN KEY (assistant_id)
+  REFERENCES public.assistants(id)
+  ON DELETE CASCADE;
+
+-- Remove obsolete RPC overloads.
+REVOKE ALL ON FUNCTION public.match_knowledge_hybrid(
+  uuid,
+  text,
+  extensions.vector,
+  integer,
+  double precision
+) FROM PUBLIC, anon, authenticated, service_role;
+
+DROP FUNCTION IF EXISTS public.match_knowledge_hybrid(
+  uuid,
+  text,
+  extensions.vector,
+  integer,
+  double precision
+);
+
+REVOKE ALL ON FUNCTION public.save_knowledge_source_with_chunks(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  jsonb
+) FROM PUBLIC, anon, authenticated, service_role;
+
+DROP FUNCTION IF EXISTS public.save_knowledge_source_with_chunks(
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  jsonb
+);
+
+COMMIT;
